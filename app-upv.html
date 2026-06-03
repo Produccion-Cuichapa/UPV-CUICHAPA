@@ -376,60 +376,81 @@ function exportarExcel(){
   const wb=new ExcelJS.Workbook();
   const ws=wb.addWorksheet('Estad Viajes 2025');
 
-  // Colors
   const IPEP_COLOR='F4B183';
-  const ATO_COLOR='2E75B6';
+  const ATO_COLOR ='2E75B6';
   const PETRO_COLOR='70AD47';
-  const GRAY_COLOR='D9D9D9';
+  const GRAY_COLOR ='D9D9D9';
+  const DIVIDER_COL='595959'; // gris oscuro para divisores empresa
+  const MONTH_COL  ='BDD7EE'; // azul claro para divisor mes
 
-  function styleCell(cell,{bg,bold,color,halign,valign,wrap,sz}={}){
+  function styleCell(cell,{bg,bold,color,halign,wrap,border:brd,sz}={}){
     if(bg) cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+bg}};
     cell.font={bold:!!bold,color:{argb:'FF'+(color||'000000')},size:sz||10,name:'Arial'};
-    cell.alignment={horizontal:halign||'center',vertical:valign||'middle',wrapText:wrap!==false};
-    cell.border={top:{style:'thin',color:{argb:'FFBFBFBF'}},bottom:{style:'thin',color:{argb:'FFBFBFBF'}},left:{style:'thin',color:{argb:'FFBFBFBF'}},right:{style:'thin',color:{argb:'FFBFBFBF'}}};
+    cell.alignment={horizontal:halign||'center',vertical:'middle',wrapText:wrap!==false};
+    const bs=brd||'thin';
+    cell.border={top:{style:bs,color:{argb:'FFBFBFBF'}},bottom:{style:bs,color:{argb:'FFBFBFBF'}},
+                 left:{style:bs,color:{argb:'FFBFBFBF'}},right:{style:bs,color:{argb:'FFBFBFBF'}}};
+  }
+
+  function styleDivRow(row, label, bg, textColor){
+    row.height=14;
+    for(let c=1;c<=22;c++){
+      const cell=row.getCell(c);
+      cell.value = c===1 ? label : '';
+      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+bg}};
+      cell.font={bold:true,color:{argb:'FF'+textColor},size:9,name:'Arial'};
+      cell.alignment={horizontal:'left',vertical:'middle'};
+      cell.border={top:{style:'medium',color:{argb:'FF'+textColor}},
+                   bottom:{style:'medium',color:{argb:'FF'+textColor}},
+                   left:{style:'thin',color:{argb:'FFBFBFBF'}},
+                   right:{style:'thin',color:{argb:'FFBFBFBF'}}};
+    }
   }
 
   // Column widths
   ws.getColumn(1).width=12;
   ws.getColumn(2).width=10; ws.getColumn(4).width=14; ws.getColumn(5).width=18; ws.getColumn(6).width=22;
+  ws.getColumn(7).width=2;  // spacer IPEP|ATO
   ws.getColumn(8).width=10; ws.getColumn(10).width=14; ws.getColumn(15).width=18; ws.getColumn(16).width=22;
+  ws.getColumn(17).width=2; // spacer ATO|PETROSMART
   ws.getColumn(18).width=10; ws.getColumn(20).width=14; ws.getColumn(21).width=18; ws.getColumn(22).width=22;
 
   // Row 1: company headers
   ws.getRow(1).height=22;
   const r1=ws.getRow(1);
-  // IPEP cols B-F (2-6)
   r1.getCell(2).value='IPEP 09';
   for(let c=2;c<=6;c++) styleCell(r1.getCell(c),{bg:IPEP_COLOR,bold:true,color:'FFFFFF'});
   ws.mergeCells('B1:F1');
-  // ATO cols H-P (8-16)
   r1.getCell(8).value='ATO';
   for(let c=8;c<=16;c++) styleCell(r1.getCell(c),{bg:ATO_COLOR,bold:true,color:'FFFFFF'});
   ws.mergeCells('H1:P1');
-  // PETROSMART cols R-V (18-22)
   r1.getCell(18).value='PETROSMART';
   for(let c=18;c<=22;c++) styleCell(r1.getCell(c),{bg:PETRO_COLOR,bold:true,color:'FFFFFF'});
   ws.mergeCells('R1:V1');
-  // Col A row1
   styleCell(r1.getCell(1),{bg:'D9D9D9',bold:true});
+  // Spacer cols row1
+  for(const c of [7,17]){
+    r1.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+DIVIDER_COL}};
+  }
 
   // Row 2: subheaders
-  ws.getRow(2).height=30;
+  ws.getRow(2).height=32;
   const r2=ws.getRow(2);
-  const subh={1:'Fecha',2:'Viajes/día',4:'Vol\nrecuperado\n(m3)',5:'Pozos',6:'Comentarios',
-               8:'Viajes/día',10:'Vol\nrecuperado\n(m3)',15:'Pozos',16:'Comentarios',
-               18:'Viajes/día',20:'Vol\nrecuperado\n(m3)',21:'Pozos',22:'Comentarios'};
+  const subh={1:'Fecha',2:'Viajes/día',4:'Vol recuperado (m3)',5:'Pozos',6:'Comentarios',
+               8:'Viajes/día',10:'Vol recuperado (m3)',15:'Pozos',16:'Comentarios',
+               18:'Viajes/día',20:'Vol recuperado (m3)',21:'Pozos',22:'Comentarios'};
   for(let c=1;c<=22;c++){
     const cell=r2.getCell(c);
     cell.value=subh[c]||'';
-    let bg=GRAY_COLOR, clr='000000';
+    let bg=GRAY_COLOR,clr='000000';
     if(c>=2&&c<=6){bg=IPEP_COLOR;clr='FFFFFF';}
     else if(c>=8&&c<=16){bg=ATO_COLOR;clr='FFFFFF';}
     else if(c>=18&&c<=22){bg=PETRO_COLOR;clr='FFFFFF';}
+    else if(c===7||c===17){bg=DIVIDER_COL;clr=DIVIDER_COL;}
     styleCell(cell,{bg,bold:true,color:clr,wrap:true});
   }
 
-  // Group & write data
+  // Group data — use local date string to avoid UTC shift
   const grouped={};
   for(const r of regs){
     const key=r.fecha+'|'+r.empresa;
@@ -440,44 +461,67 @@ function exportarExcel(){
     if(r.comentarios)grouped[key].comentarios.push(r.comentarios);
   }
 
-  // Generate all dates for the year
+  // Helper: local date string YYYY-MM-DD without UTC shift
+  function localDateStr(d){
+    const y=d.getFullYear();
+    const m=String(d.getMonth()+1).padStart(2,'0');
+    const day=String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+
+  const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
   const year=new Date().getFullYear();
-  const startDate=new Date(year,0,1);
-  const endDate=new Date(year,11,31);
   let rowNum=3;
-  for(let d=new Date(startDate);d<=endDate;d.setDate(d.getDate()+1)){
-    const dateStr=d.toISOString().slice(0,10);
-    const exRow=ws.getRow(rowNum);
-    exRow.height=16;
 
-    // Date cell
-    const dc=exRow.getCell(1);
-    dc.value=new Date(d);
-    dc.numFmt='DD-MMM-YY';
-    styleCell(dc,{halign:'center'});
+  for(let month=0;month<12;month++){
+    // Month divider row
+    const daysInMonth=new Date(year,month+1,0).getDate();
+    const divRow=ws.getRow(rowNum++);
+    styleDivRow(divRow, `━━  ${MONTHS[month].toUpperCase()} ${year}  ━━`, MONTH_COL, '1F4E79');
 
-    // Write each company
-    const cols={IPEP:{v:2,vol:4,p:5,c:6},ATO:{v:8,vol:10,p:15,c:16},PETROSMART:{v:18,vol:20,p:21,c:22}};
-    for(const [emp,cc] of Object.entries(cols)){
-      const entry=grouped[dateStr+'|'+emp];
-      // Number cols center
-      for(const col of[cc.v,cc.vol]){
-        const cell=exRow.getCell(col);
-        cell.value=entry?( col===cc.v?entry.viajes:Math.round(entry.vol*100)/100):null;
-        styleCell(cell,{halign:'center'});
+    // Day rows for this month
+    for(let day=1;day<=daysInMonth;day++){
+      const d=new Date(year,month,day);
+      const dateStr=localDateStr(d);
+      const exRow=ws.getRow(rowNum++);
+      exRow.height=16;
+
+      // Date cell
+      const dc=exRow.getCell(1);
+      dc.value=d;
+      dc.numFmt='DD-MMM-YY';
+      styleCell(dc,{halign:'center'});
+
+      // Spacer cols
+      for(const c of [7,17]){
+        exRow.getCell(c).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+DIVIDER_COL}};
       }
-      // Pozos left
-      const pCell=exRow.getCell(cc.p);
-      if(entry&&Object.keys(entry.pozos).length){
-        pCell.value=Object.entries(entry.pozos).map(([p,n])=>n>1?`${p}(${n})`:p).join(', ');
-      }else pCell.value=null;
-      styleCell(pCell,{halign:'left'});
-      // Comentarios left
-      const cCell=exRow.getCell(cc.c);
-      cCell.value=entry&&entry.comentarios.length?entry.comentarios.join('; '):null;
-      styleCell(cCell,{halign:'left'});
+
+      const cols={IPEP:{v:2,vol:4,p:5,c:6},ATO:{v:8,vol:10,p:15,c:16},PETROSMART:{v:18,vol:20,p:21,c:22}};
+      for(const [emp,cc] of Object.entries(cols)){
+        const entry=grouped[dateStr+'|'+emp];
+        // Viajes
+        const vCell=exRow.getCell(cc.v);
+        vCell.value=entry?entry.viajes:null;
+        styleCell(vCell,{halign:'center'});
+        // Vol
+        const volCell=exRow.getCell(cc.vol);
+        volCell.value=entry?Math.round(entry.vol*100)/100:null;
+        styleCell(volCell,{halign:'center'});
+        // Pozos
+        const pCell=exRow.getCell(cc.p);
+        pCell.value=entry&&Object.keys(entry.pozos).length
+          ?Object.entries(entry.pozos).map(([p,n])=>n>1?`POZO ${p}(${n})`:`POZO ${p}`).join(', ')
+          :null;
+        styleCell(pCell,{halign:'left'});
+        // Comentarios
+        const cCell=exRow.getCell(cc.c);
+        cCell.value=entry&&entry.comentarios.length?entry.comentarios.join('; '):null;
+        styleCell(cCell,{halign:'left'});
+      }
     }
-    rowNum++;
   }
 
   // Freeze top 2 rows
@@ -490,14 +534,13 @@ function exportarExcel(){
     const a=document.createElement('a');
     a.href=url; a.download='Viajes_UPVs_Campo_Cuichapa.xlsx'; a.click();
     URL.revokeObjectURL(url);
-    // Save as base for next download
     try{
       const reader=new FileReader();
-      reader.onload=()=>{ try{localStorage.setItem('upv_excel_base',reader.result.split(',')[1]);}catch(e){} };
+      reader.onload=()=>{try{localStorage.setItem('upv_excel_base',reader.result.split(',')[1]);}catch(e){}};
       reader.readAsDataURL(blob);
     }catch(e){}
-    toast('✓ Excel descargado con formato completo');
-  }).catch(e=>{toast('Error al generar Excel: '+e.message,'#f0b8a0');console.error(e);});
+    toast('✓ Excel descargado');
+  }).catch(e=>{toast('Error: '+e.message,'#f0b8a0');console.error(e);});
 }
 
 function limpiar(){

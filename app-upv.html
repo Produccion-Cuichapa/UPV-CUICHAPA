@@ -157,6 +157,17 @@ textarea.inp{resize:none;min-height:80px;line-height:1.6}
 .li{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);font-family:var(--mono)}
 .lsq{width:9px;height:9px;border-radius:2px;flex-shrink:0}
 </style>
+
+<link rel="manifest" href="manifest.json">
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js')
+      .then(r=>console.log('SW registrado:',r.scope))
+      .catch(e=>console.log('SW error:',e));
+  });
+}
+</script>
 </head>
 <body>
 <div id="app">

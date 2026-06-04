@@ -519,10 +519,10 @@ function exportarExcel(){
       const exRow=ws.getRow(rowNum++);
       exRow.height=16;
 
-      // Date cell
+      // Date cell — usar texto para evitar que ExcelJS muestre número de serie
       const dc=exRow.getCell(1);
-      dc.value=d;
-      dc.numFmt='DD-MMM-YY';
+      const mnames=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      dc.value=String(day).padStart(2,'0')+'-'+mnames[month]+'-'+String(year).slice(2);
       styleCell(dc,{halign:'center'});
 
       // Spacer cols
